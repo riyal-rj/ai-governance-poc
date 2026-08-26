@@ -17,3 +17,5 @@ langfuse==2.53.9
 spiffe==0.2.0
 pyjwt[crypto]==2.10.1
 langgraph==1.2.10
+pydantic_settings
+prometheus_client

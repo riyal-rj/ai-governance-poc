@@ -31,7 +31,7 @@ class ComponentHealth:
     def healthy(self) -> bool:
         return self.status is ComponentStatus.HEALTHY
 
-
+@dataclass(frozen = True, slots = True)
 class ReadinessReport:
     """Aggregate Readiness decision returned by the health use case."""
 
