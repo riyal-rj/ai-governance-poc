@@ -17,7 +17,7 @@ from src.application.ports.health import ReadinessReport
 class Metrics:
     """Per application metric registry safe for tests and app factories"""
 
-    def __init__(self,*
+    def __init__(self,*,
                  service_name: str,
                  service_version: str,
                  environment: str) -> None:
