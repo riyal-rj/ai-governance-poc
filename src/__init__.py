@@ -1,0 +1,1 @@
+"""FinAssist application package."""

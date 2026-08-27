@@ -2,6 +2,7 @@
 
 from typing import Protocol
 
+
 class AsyncCloseable(Protocol):
     "A process scoped resource that can be closed asynchronously."
 

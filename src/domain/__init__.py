@@ -1,0 +1,1 @@
+"""FinAssist domain package."""

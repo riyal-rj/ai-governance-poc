@@ -6,17 +6,13 @@ an immutable `AppSettings` object through construction.
 
 from __future__ import annotations
 
+import re
 from enum import StrEnum
 from typing import Self
 
-from pydantic import (
-    BaseModel,
-    Field,
-    SecretStr,
-    field_validator,
-    model_validator
-)
+from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 class Environment(StrEnum):
     """Supported deployment environments"""
@@ -27,17 +23,26 @@ class Environment(StrEnum):
     STAGING = "staging"
     PRODUCTION = "production"
 
+
 class DatabaseSettings(BaseModel):
-    """PostgresSQL pool and timeout configuration."""
+    """PostgreSQL pool and timeout configuration."""
 
-    model_config = {"frozen" : True}
+    model_config = {"frozen": True}
 
-    dsn:SecretStr
-    min_pool_size: int = Field(default = 2, ge = 1, le = 100)
-    max_pool_size: int = Field(default = 10, ge = 1, le = 200)
-    connect_timeout_seconds: float = Field(default = 5.0, gt = 0, le = 60)
-    command_timeout_seconds: float = Field(default = 10.0, gt=0, le = 300)
-    close_timeout_seconds: float = Field(default = 10.0, gt = 0, le=60)
+    dsn: SecretStr
+    min_pool_size: int = Field(default=2, ge=1, le=100)
+    max_pool_size: int = Field(default=10, ge=1, le=200)
+    connect_timeout_seconds: float = Field(default=5.0, gt=0, le=60)
+    command_timeout_seconds: float = Field(default=10.0, gt=0, le=300)
+    close_timeout_seconds: float = Field(default=10.0, gt=0, le=60)
+
+    @field_validator("dsn")
+    @classmethod
+    def validate_dsn(cls, value: SecretStr) -> SecretStr:
+        dsn = value.get_secret_value().strip()
+        if not dsn.startswith(("postgresql://", "postgres://")):
+            raise ValueError("dsn must use postgresql:// or postgres://")
+        return SecretStr(dsn)
 
     @model_validator(mode="after")
     def validate_pool_bounds(self) -> Self:
@@ -45,14 +50,15 @@ class DatabaseSettings(BaseModel):
             raise ValueError("min_pool_size cannot exceed max_pool_size")
         return self
 
+
 class OPASettings(BaseModel):
     """Connection details for the internal policy decision point."""
 
-    model_config = {"frozen":True}
+    model_config = {"frozen": True}
 
-    base_url : str = "http://opa:8181"
+    base_url: str = "http://opa:8181"
     health_path: str = "/health"
-    decision_timeout_seconds: float = Field(default=2.0, gt = 0, le=30)
+    decision_timeout_seconds: float = Field(default=2.0, gt=0, le=30)
     health_timeout_seconds: float = Field(default=2.0, gt=0, le=30)
 
     @field_validator("base_url")
@@ -67,8 +73,9 @@ class OPASettings(BaseModel):
     @classmethod
     def validate_health_path(cls, value: str) -> str:
         if not value.startswith("/"):
-            raise ValueError("health_path must start with `/")
+            raise ValueError("health_path must start with '/'")
         return value
+
 
 class HttpClientSettings(BaseModel):
     """Timeout and connection limits for the shared outbound HTTP client."""
@@ -83,13 +90,13 @@ class HttpClientSettings(BaseModel):
     max_keepalive_connections: int = Field(default=10, gt=0, le=200)
     keepalive_expiry_seconds: float = Field(default=30.0, gt=0, le=600)
 
-
     @model_validator(mode="after")
     def validate_connection_limits(self) -> Self:
         if self.max_keepalive_connections > self.max_connections:
             raise ValueError("max_keepalive_connections cannot exceed max_connections")
         return self
-    
+
+
 class StartupSettings(BaseModel):
     """Bounded startup-readiness policy."""
 
@@ -122,6 +129,15 @@ class ObservabilitySettings(BaseModel):
         if not value.startswith("/"):
             raise ValueError("metrics_path must start with '/'")
         return value
+
+    @field_validator("request_id_header")
+    @classmethod
+    def validate_request_id_header(cls, value: str) -> str:
+        normalized = value.strip()
+        if not re.fullmatch(r"[!#$%&'*+\-.^_`|~0-9A-Za-z]+", normalized):
+            raise ValueError("request_id_header must be a valid HTTP field name")
+        return normalized
+
 
 class AppSettings(BaseSettings):
     """Immutable, environment-backed configuration for one service process."""
@@ -177,10 +193,12 @@ class AppSettings(BaseSettings):
             raise ValueError("debug must be false in production")
         if self.environment is Environment.PRODUCTION and not self.log_json:
             raise ValueError("structured JSON logs are required in production")
+        if self.environment is Environment.PRODUCTION and self.docs_enabled:
+            raise ValueError("API documentation must be disabled in production")
         return self
 
 
 def load_settings() -> AppSettings:
     """Load and validate settings exactly once at application construction."""
 
-    return AppSettings()  # type: ignore[call-arg]  # database is loaded from environment variables
+    return AppSettings()

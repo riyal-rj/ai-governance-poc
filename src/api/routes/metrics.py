@@ -12,8 +12,4 @@ async def metrics(metrics_registry: MetricsDependency) -> Response:
     """Render the process-local metric registry for Prometheus scraping."""
 
     body, content_type = metrics_registry.render()
-    return Response(content=body, 
-                    headers={
-                        "Content-Type": content_type
-                        }
-                    )
+    return Response(content=body, headers={"Content-Type": content_type})

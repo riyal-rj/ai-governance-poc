@@ -1,4 +1,4 @@
-"""Readiness use case independent of FASTAPI and concrete infratstructure."""
+"""Readiness use case independent of FastAPI and concrete infrastructure."""
 
 from __future__ import annotations
 
@@ -7,16 +7,14 @@ import logging
 from collections.abc import Sequence
 from datetime import UTC, datetime
 
-
 from src.application.ports.health import (
     ComponentHealth,
     ComponentStatus,
     HealthCheck,
     HealthObserver,
     ReadinessReport,
-    ServiceStatus
+    ServiceStatus,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -24,15 +22,14 @@ logger = logging.getLogger(__name__)
 class ReadinessService:
     """Run all  dependency checks concurrently and calculate service readiness."""
 
-    def __init__(self,
-                 checks: Sequence[HealthCheck],
-                 *,
-                 observer: HealthObserver | None = None) -> None:
-        self._checks= checks
+    def __init__(
+        self, checks: Sequence[HealthCheck], *, observer: HealthObserver | None = None
+    ) -> None:
+        self._checks = checks
         self._observer = observer
 
     async def evaluate(self) -> ReadinessReport:
-        """Return a determinsitic report; an individual check never aborts the rest."""
+        """Return a deterministic report; an individual check never aborts the rest."""
 
         components = await asyncio.gather(*(self._safe_check(check) for check in self._checks))
         critical_failure = any(not item.healthy and item.critical for item in components)
@@ -55,12 +52,10 @@ class ReadinessService:
         if self._observer is not None:
             try:
                 self._observer.observe_readiness(report)
-            except:
+            except Exception:
                 logger.exception(
                     "health observer failed",
-                    extra = {
-                        "event":"health obeserver failed"
-                    }
+                    extra={"event": "health_observer_failed"},
                 )
 
         return report
@@ -72,15 +67,12 @@ class ReadinessService:
         except Exception:
             logger.exception(
                 "dependency health check raised unexpectedly",
-                extra = {
-                    "event":"dependency_health_check_failed",
-                    "dependecy": check.name
-                }
+                extra={"event": "dependency_health_check_failed", "dependency": check.name},
             )
 
             return ComponentHealth(
-                component = check.name,
-                status = ComponentStatus.UNHEALTHY,
+                component=check.name,
+                status=ComponentStatus.UNHEALTHY,
                 critical=check.critical,
                 latency_ms=0.0,
                 message="health check failed",
