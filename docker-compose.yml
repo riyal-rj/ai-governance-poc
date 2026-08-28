@@ -1,6 +1,22 @@
 name: finassist
 
 services:
+  migrate:
+    build:
+      context: .
+    env_file:
+      - .env
+    environment:
+      FINASSIST_DATABASE__DSN: postgresql://finassist:${POSTGRES_PASSWORD:-finassist_local_only}@postgres:5432/finassist
+      FINASSIST_OPA__BASE_URL: http://opa:8181
+    command: ["python", "-m", "scripts.migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    restart: "no"
+
   api:
     build:
       context: .
@@ -14,6 +30,8 @@ services:
         condition: service_healthy
       opa:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     ports:
       - "127.0.0.1:8000:8000"
     security_opt:
@@ -54,9 +72,9 @@ services:
 
   opa:
     image: openpolicyagent/opa:1.19.1-static
-    command: ["run", "--server", "--addr=0.0.0.0:8181"]
-    ports:
-      - "127.0.0.1:8181:8181"
+    command: ["run", "--server", "--addr=0.0.0.0:8181", "/policies"]
+    volumes:
+      - ./opa/policies:/policies:ro
     healthcheck:
       test:
         - CMD

@@ -82,7 +82,7 @@ async def build_container(settings: AppSettings) -> AppContainer:
             OPAHealthCheck(
                 http_client,
                 base_url=settings.opa.base_url,
-                health_path=settings.opa.health_path,
+                decision_path=settings.opa.decision_path,
                 timeout_seconds=settings.opa.health_timeout_seconds,
             ),
         )

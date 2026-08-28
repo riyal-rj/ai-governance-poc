@@ -57,7 +57,7 @@ class OPASettings(BaseModel):
     model_config = {"frozen": True}
 
     base_url: str = "http://opa:8181"
-    health_path: str = "/health"
+    decision_path: str = "/v1/data/finassist/system/ready"
     decision_timeout_seconds: float = Field(default=2.0, gt=0, le=30)
     health_timeout_seconds: float = Field(default=2.0, gt=0, le=30)
 
@@ -69,11 +69,11 @@ class OPASettings(BaseModel):
             raise ValueError("base_url must use http:// or https://")
         return normalized
 
-    @field_validator("health_path")
+    @field_validator("decision_path")
     @classmethod
-    def validate_health_path(cls, value: str) -> str:
+    def validate_decision_path(cls, value: str) -> str:
         if not value.startswith("/"):
-            raise ValueError("health_path must start with '/'")
+            raise ValueError("decision_path must start with '/'")
         return value
 
 
